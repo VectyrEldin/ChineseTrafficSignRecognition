@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Project environments and generated artifacts
+.venv/
+runs/
+*.pt
+*.onnx
+*.pkl
+train.log
+onnx_output_format.json
+onnx_output_format.txt
+parity_baseline.json
+eval_by_size.json
+eval_baseline.json
+eval_optimized.json
+*.bak

@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "convert_tt100k.py (转换数据集)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/convert_tt100k.py",
+            "args": [
+                "--annotation", "${workspaceFolder}/../data/tt100k_2021/annotations_all.json",
+                "--image-dir", "${workspaceFolder}/../data/tt100k_2021/train",
+                "--test-image-dir", "${workspaceFolder}/../data/tt100k_2021/test",
+                "--output", "${workspaceFolder}/../data/tt100k48_yolo",
+                "--min-samples", "100"
+            ],
+
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "train.py (训练 YOLO26s)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/train.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "export_onnx.py (导出并验证 ONNX)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/export_onnx.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}

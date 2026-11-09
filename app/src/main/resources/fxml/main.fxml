@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.tsd.ui.DetectionCanvas?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.tsd.ui.MainController"
+            stylesheets="@../css/style.css">
+
+    <!-- ==================== 顶部工具栏 ==================== -->
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="toolbar">
+            <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
+
+            <Button fx:id="openButton" text="打开图片" styleClass="btn-primary"/>
+            <Button fx:id="cameraButton" text="开启摄像头"/>
+            <Button fx:id="captureButton" text="拍照检测" disable="true"/>
+            <Button fx:id="clearButton" text="清空"/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Label text="置信度阈值"/>
+            <Slider fx:id="confSlider" min="0.05" max="0.90" value="0.25"
+                    prefWidth="160" showTickMarks="true" showTickLabels="true"/>
+            <Label fx:id="confLabel" text="0.25" minWidth="40" styleClass="value-label"/>
+
+            <CheckBox fx:id="labelCheckBox" text="显示标签" selected="true"/>
+        </HBox>
+    </top>
+
+    <!-- ==================== 中央：画布 + 结果表 ==================== -->
+    <center>
+        <SplitPane dividerPositions="0.68" VBox.vgrow="ALWAYS">
+            <StackPane fx:id="canvasPane" styleClass="canvas-pane">
+                <DetectionCanvas fx:id="canvas"/>
+            </StackPane>
+
+            <VBox spacing="6" styleClass="result-panel">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="检测结果" styleClass="panel-title"/>
+                <TableView fx:id="resultTable" VBox.vgrow="ALWAYS" styleClass="result-table">
+                    <columns>
+                        <TableColumn fx:id="colId"    text="ID"   prefWidth="48"  styleClass="col-id"/>
+                        <TableColumn fx:id="colClass" text="类别" prefWidth="90"/>
+                        <TableColumn fx:id="colDesc"  text="描述" prefWidth="200"/>
+                        <TableColumn fx:id="colConf"  text="置信度"/>
+                        <TableColumn fx:id="colBox"   text="位置"  prefWidth="180"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </SplitPane>
+    </center>
+
+    <!-- ==================== 底部状态栏 ==================== -->
+    <bottom>
+        <HBox styleClass="status-bar">
+            <padding><Insets top="6" right="12" bottom="6" left="12"/></padding>
+            <Label fx:id="statusLabel" text="就绪"/>
+        </HBox>
+    </bottom>
+</BorderPane>

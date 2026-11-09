@@ -1,0 +1,38 @@
+# ===== Gradle / Java 构建产物 =====
+.gradle/
+build/
+.kotlin/
+app/bin/
+*.class
+hs_err_pid*
+replay_pid*
+
+# ===== IDE =====
+.idea/
+
+# ===== 杂散 CLI 产物 =====
+--class-path
+
+# ===== Python（scripts/）=====
+__pycache__/
+*.py[cod]
+.venv/
+/scripts/runs/
+
+# ===== 日志 =====
+*.log
+
+# ===== 数据集：TT100K 约 18GB，许可禁止再分发，README 指引自行下载 =====
+/data/
+
+# ===== 模型权重：*.pt 由 Ultralytics 自动下载；best.onnx 经 GitHub Release 分发 =====
+*.pt
+*.onnx
+*.bak
+
+# ===== 第三方二进制：OpenCV jar + native dll（约 55MB），README 指引下载 =====
+/libs/
+
+# ===== 个人 / 本地材料，不随开源发布 =====
+/defense_ppt/
+/.slidep/

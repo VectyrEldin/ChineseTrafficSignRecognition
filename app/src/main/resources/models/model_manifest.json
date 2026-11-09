@@ -1,0 +1,33 @@
+{
+  "model_sha256": "53342d69c9e359fcd6f72736cb9b3003149d4e9359e99450a47813016474f60c",
+  "opset": 12,
+  "imgsz": 640,
+  "num_classes": 48,
+  "class_names_sha256_16": "e8d06fab0d25db84",
+  "source_weights": "Z:\\TrafficSignRecognition\\scripts\\runs\\detect\\tt100k48_yolo26s\\weights\\last.pt",
+  "output_layout": "end2end_nms_free",
+  "coordinate_space": "pixel_imgsz",
+  "columns": [
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "score",
+    "class_id"
+  ],
+  "output_shape": [
+    1,
+    300,
+    6
+  ],
+  "need_nms": false,
+  "preprocess": {
+    "resize_interpolation": "INTER_LINEAR",
+    "round_mode": "rint",
+    "pad_value": 114,
+    "color_order": "RGB",
+    "normalization": "div255",
+    "letterbox": "center"
+  },
+  "contract_source": "real_image"
+}
