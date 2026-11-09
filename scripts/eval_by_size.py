@@ -43,13 +43,16 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_OUT = SCRIPT_DIR / "eval_by_size.json"
 
 # 论文 §5 / Table 3 的阈值，单位为「原始 2048×2048 图」中的等效边长像素
-SIZE_BINS = (("small(0,32]", 0.0, 32.0),
-             ("medium(32,96]", 32.0, 96.0),
-             ("large(96,400]", 96.0, float("inf")))
+SIZE_BINS = (
+    ("small(0,32]", 0.0, 32.0),
+    ("medium(32,96]", 32.0, 96.0),
+    ("large(96,400]", 96.0, float("inf")),
+)
 
 # 与 export_onnx.py 的 nms=False 导出、train.py 的训练内 val 保持同一检测头。
 # 不传 nms 时 Ultralytics 默认用 one-to-many+NMS 头，评测会与部署口径错开。
 DEPLOY_NMS = False
+
 
 # ==================== 数据 ====================
 def load_dataset(data_yaml: Path, split: str) -> tuple[list[Path], list[Path], list[str]]:
@@ -58,8 +61,8 @@ def load_dataset(data_yaml: Path, split: str) -> tuple[list[Path], list[Path], l
         raise TypeError(
             f"YAML 文件根节点必须是字典，但 {data_yaml} 加载出了 {type(cfg_data).__name__}"
         )
-    
-    cfg = cfg_data 
+
+    cfg = cfg_data
 
     names = list(cfg.get("names", []))
     entry = cfg[split]
@@ -70,16 +73,17 @@ def load_dataset(data_yaml: Path, split: str) -> tuple[list[Path], list[Path], l
         # 与 Ultralytics check_det_dataset 一致：path 缺省时根 = yaml 所在目录
         root = data_yaml.parent.resolve()
     img_root = (root / entry).resolve()
-    images = sorted(
-        p for p in img_root.rglob("*")
-        if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}
-    ) if img_root.is_dir() else []
+    images = (
+        sorted(
+            p for p in img_root.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}
+        )
+        if img_root.is_dir()
+        else []
+    )
     if not images and img_root.is_file():
         # 支持 train: train_balanced.txt（类感知重采样清单）
-        lines = [l.strip() for l in img_root.read_text(encoding="utf-8").splitlines()
-                 if l.strip()]
-        images = sorted({(img_root.parent / l.replace("./", "", 1)).resolve()
-                         for l in lines})
+        lines = [l.strip() for l in img_root.read_text(encoding="utf-8").splitlines() if l.strip()]
+        images = sorted({(img_root.parent / l.replace("./", "", 1)).resolve() for l in lines})
     return images, [to_label_path(p) for p in images], names
 
 
@@ -123,8 +127,11 @@ def iou(a: list[float], b: list[float]) -> float:
     ix1, iy1 = max(a[0], b[0]), max(a[1], b[1])
     ix2, iy2 = min(a[2], b[2]), min(a[3], b[3])
     inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
-    ua = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1]) \
-        + max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1]) - inter
+    ua = (
+        max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+        + max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+        - inter
+    )
     return inter / ua if ua > 0 else 0.0
 
 
@@ -137,8 +144,9 @@ def bin_of(side: float) -> str:
 
 # ==================== 推理 ====================
 def predict(model, image_or_path, imgsz: int, conf: float) -> list[tuple[int, float, list[float]]]:
-    results = model.predict(source=image_or_path, conf=conf, imgsz=imgsz,
-                            nms=DEPLOY_NMS, verbose=False, stream=False)
+    results = model.predict(
+        source=image_or_path, conf=conf, imgsz=imgsz, nms=DEPLOY_NMS, verbose=False, stream=False
+    )
     first = next(iter(results), None)
     if first is None or first.boxes is None:
         return []
@@ -148,9 +156,11 @@ def predict(model, image_or_path, imgsz: int, conf: float) -> list[tuple[int, fl
     return detections
 
 
-def match(gt: list[tuple[int, list[float]]],
-          detections: list[tuple[int, float, list[float]]],
-          thr: float = 0.5) -> tuple[set[int], set[int]]:
+def match(
+    gt: list[tuple[int, list[float]]],
+    detections: list[tuple[int, float, list[float]]],
+    thr: float = 0.5,
+) -> tuple[set[int], set[int]]:
     """类别感知 + IoU 贪心匹配，返回 (已匹配 GT 下标, 已匹配 det 下标)。"""
     pairs = []
     for gi, (gc, gb) in enumerate(gt):
@@ -182,11 +192,11 @@ def _safe_div(numerator: float, denominator: float, digits: int = 4) -> float | 
 # ==================== 推理 ====================
 def _process_single_image(
     img_path: Path, lbl_path: Path, model, imgsz: int, conf: float
-) -> tuple[list, list, float] | None:          # 修改返回类型
+) -> tuple[list, list, float] | None:  # 修改返回类型
     """处理单张图片，返回 (gt_boxes, detections, net_scale)，失败返回 None。"""
     img = cv2.imread(str(img_path))
     if img is None:
-        return None                            # 直接返回 None，不再用 0.0 做哨兵
+        return None  # 直接返回 None，不再用 0.0 做哨兵
     h, w = img.shape[:2]
     net_scale = imgsz / max(w, h)
     gt = read_gt(lbl_path, w, h)
@@ -195,8 +205,7 @@ def _process_single_image(
 
 
 def _update_stats_for_image(
-    gt: list, detections: list, used_g: set[int], net_scale: float,
-    stats: dict, per_class: dict
+    gt: list, detections: list, used_g: set[int], net_scale: float, stats: dict, per_class: dict
 ) -> None:
     """将单张图片的 GT 和检测框累加到统计字典中。"""
     for gi, (cid, box) in enumerate(gt):
@@ -210,7 +219,10 @@ def _update_stats_for_image(
             per_class[cid]["tp"] += 1
 
     for _, _, detection_box in detections:
-        side = math.sqrt(max(0.0, detection_box[2] - detection_box[0]) * max(0.0, detection_box[3] - detection_box[1]))
+        side = math.sqrt(
+            max(0.0, detection_box[2] - detection_box[0])
+            * max(0.0, detection_box[3] - detection_box[1])
+        )
         stats[bin_of(side)]["det"] += 1
 
 
@@ -243,11 +255,9 @@ def _compute_class_recall(per_class: dict, names: list[str]) -> dict:
 
 
 # ==================== 1) 尺寸分档 ====================
-def eval_sizes(model, images, labels, names, imgsz: int, conf: float,
-               limit: int) -> dict:
+def eval_sizes(model, images, labels, names, imgsz: int, conf: float, limit: int) -> dict:
     stats: dict[str, dict] = {
-        name: {"gt": 0, "tp": 0, "det": 0, "net_px_sum": 0.0}
-        for name, _, _ in SIZE_BINS
+        name: {"gt": 0, "tp": 0, "det": 0, "net_px_sum": 0.0} for name, _, _ in SIZE_BINS
     }
     per_class: dict[int, dict] = defaultdict(lambda: {"gt": 0, "tp": 0})
     n = min(len(images), limit) if limit > 0 else len(images)
@@ -255,7 +265,7 @@ def eval_sizes(model, images, labels, names, imgsz: int, conf: float,
 
     for idx, (img_path, lbl_path) in enumerate(zip(images[:n], labels[:n])):
         result = _process_single_image(img_path, lbl_path, model, imgsz, conf)
-        if result is None:                     # 清晰的错误状态判断，无浮点比较
+        if result is None:  # 清晰的错误状态判断，无浮点比较
             continue
         gt, detections, net_scale = result
 
@@ -275,8 +285,9 @@ def eval_sizes(model, images, labels, names, imgsz: int, conf: float,
 
 
 # ==================== 2) 背景 FPPI ====================
-def eval_background(model, dirs: list[Path], annotation: Path | None,
-                    imgsz: int, conf: float, limit: int) -> dict:
+def eval_background(
+    model, dirs: list[Path], annotation: Path | None, imgsz: int, conf: float, limit: int
+) -> dict:
     registered: set[str] = set()
     if annotation and annotation.is_file():
         ann = json.loads(annotation.read_text(encoding="utf-8"))
@@ -285,8 +296,7 @@ def eval_background(model, dirs: list[Path], annotation: Path | None,
             registered.add(f"{img_data.get('id')}.jpg")
 
     candidates = sorted(
-        {p for d in dirs if d.is_dir() for p in d.glob("*.jpg")
-         if p.name not in registered},
+        {p for d in dirs if d.is_dir() for p in d.glob("*.jpg") if p.name not in registered},
         key=lambda p: hashlib.sha256(p.name.encode()).hexdigest(),
     )
     chosen = candidates[:limit] if limit > 0 else candidates
@@ -308,7 +318,9 @@ def eval_background(model, dirs: list[Path], annotation: Path | None,
         "total_false_boxes": boxes,
         "fppi": round(boxes / len(chosen), 4),
         "image_fp_rate": round(images_with_fp / len(chosen), 4),
-        "mean_top_conf_when_fp": round(sum(confidence_scores) / len(confidence_scores), 4) if confidence_scores else None,
+        "mean_top_conf_when_fp": round(sum(confidence_scores) / len(confidence_scores), 4)
+        if confidence_scores
+        else None,
         "conf": conf,
     }
 
@@ -339,9 +351,15 @@ def eval_flip(model, images, names, imgsz: int, conf: float, limit: int) -> dict
             per_class[na] += 1
 
     top = sorted(
-        ({"class": k, "flips": v, "compared": per_class_total[k],
-          "disagree_rate": round(v / per_class_total[k], 4)}
-         for k, v in per_class.items()),
+        (
+            {
+                "class": k,
+                "flips": v,
+                "compared": per_class_total[k],
+                "disagree_rate": round(v / per_class_total[k], 4),
+            }
+            for k, v in per_class.items()
+        ),
         key=lambda x: -x["flips"],
     )[:12]
     return {
@@ -361,10 +379,13 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--limit", type=int, default=0, help="分档评测最多图片数，0=全部")
-    ap.add_argument("--bg-dir", action="append", default=[],
-                    help="纯背景图目录，可重复指定")
-    ap.add_argument("--annotation", type=Path, default=None,
-                    help="annotations_all.json，用于排除已登记的有标注图")
+    ap.add_argument("--bg-dir", action="append", default=[], help="纯背景图目录，可重复指定")
+    ap.add_argument(
+        "--annotation",
+        type=Path,
+        default=None,
+        help="annotations_all.json，用于排除已登记的有标注图",
+    )
     ap.add_argument("--bg-limit", type=int, default=300)
     ap.add_argument("--flip-limit", type=int, default=50)
     ap.add_argument("--skip-flip", action="store_true")
@@ -380,46 +401,61 @@ def main() -> None:
     from ultralytics import YOLO
 
     images, labels, names = load_dataset(args.data, args.split)
-    print(f"[INFO] split={args.split} 图片={len(images)} 类别={len(names)} "
-          f"imgsz={args.imgsz} conf={args.conf}")
+    print(
+        f"[INFO] split={args.split} 图片={len(images)} 类别={len(names)} "
+        f"imgsz={args.imgsz} conf={args.conf}"
+    )
     if not images:
         raise SystemExit("[FAIL] 该 split 未找到图片")
 
     model = YOLO(str(args.weights))
     result: dict = {
-        "weights": str(args.weights), "data": str(args.data),
-        "split": args.split, "imgsz": args.imgsz, "conf": args.conf,
+        "weights": str(args.weights),
+        "data": str(args.data),
+        "split": args.split,
+        "imgsz": args.imgsz,
+        "conf": args.conf,
         "num_classes": len(names),
-        "size_bins": eval_sizes(model, images, labels, names,
-                                args.imgsz, args.conf, args.limit),
+        "size_bins": eval_sizes(model, images, labels, names, args.imgsz, args.conf, args.limit),
     }
     if args.bg_dir:
         result["background"] = eval_background(
-            model, [Path(d) for d in args.bg_dir], args.annotation,
-            args.imgsz, args.conf, args.bg_limit,
+            model,
+            [Path(d) for d in args.bg_dir],
+            args.annotation,
+            args.imgsz,
+            args.conf,
+            args.bg_limit,
         )
     if not args.skip_flip:
         result["flip_consistency"] = eval_flip(
-            model, images, names, args.imgsz, args.conf, args.flip_limit,
+            model,
+            images,
+            names,
+            args.imgsz,
+            args.conf,
+            args.flip_limit,
         )
 
-    args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+    args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("\n" + "=" * 68)
     print("尺寸分档（论文 Table 3 口径, recall/precision 为 IoU0.5 微平均）")
     print("=" * 68)
     for name, st in result["size_bins"]["bins"].items():
-        print(f"  {name:16s} GT={st['gt_boxes']:6d}  TP={st['matched']:6d}  "
-              f"R={st['recall_iou50']}  P={st['precision_iou50']}  "
-              f"网络等效边长={st['mean_net_equivalent_px']} px")
+        print(
+            f"  {name:16s} GT={st['gt_boxes']:6d}  TP={st['matched']:6d}  "
+            f"R={st['recall_iou50']}  P={st['precision_iou50']}  "
+            f"网络等效边长={st['mean_net_equivalent_px']} px"
+        )
     if "background" in result:
         bg = result["background"]
-        print(f"\n背景误检: {bg['images']} 图  FPPI={bg.get('fppi')}  "
-              f"图像级误检率={bg.get('image_fp_rate')}")
+        print(
+            f"\n背景误检: {bg['images']} 图  FPPI={bg.get('fppi')}  "
+            f"图像级误检率={bg.get('image_fp_rate')}"
+        )
     if "flip_consistency" in result:
-        print(f"\n翻转 top-1 不一致率: "
-              f"{result['flip_consistency']['top1_disagreement_rate']}")
+        print(f"\n翻转 top-1 不一致率: {result['flip_consistency']['top1_disagreement_rate']}")
     print(f"\n✅ 报告: {args.out}")
 
 

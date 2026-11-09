@@ -5,7 +5,7 @@
   .\check_all.ps1
   .\check_all.ps1 -NoPause
 .NOTES
-  假设脚本位于项目根目录；放在别处时用 -Root Z:\TrafficSignRecognition
+  假设脚本位于项目根目录；放在别处时用 -Root <项目根目录绝对路径>
 #>
 param(
     [string]$Root = $PSScriptRoot,

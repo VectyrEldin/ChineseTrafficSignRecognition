@@ -46,25 +46,51 @@ from eval_by_size import eval_background
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="背景 FPPI 复合择优（best.pt vs last.pt）")
-    ap.add_argument("--run-dir", type=Path, default=DEFAULT_RUN_DIR,
-                    help="训练产物目录；默认 candidates 为其 weights/ 下的 best/last")
-    ap.add_argument("--candidates", nargs="+", type=Path, default=[],
-                    help="显式候选权重列表，指定后忽略 --run-dir 的默认候选")
+    ap.add_argument(
+        "--run-dir",
+        type=Path,
+        default=DEFAULT_RUN_DIR,
+        help="训练产物目录；默认 candidates 为其 weights/ 下的 best/last",
+    )
+    ap.add_argument(
+        "--candidates",
+        nargs="+",
+        type=Path,
+        default=[],
+        help="显式候选权重列表，指定后忽略 --run-dir 的默认候选",
+    )
     ap.add_argument("--data", type=Path, default=DEFAULT_DATA, help="数据集 yaml")
-    ap.add_argument("--bg-dir", action="append", default=[],
-                    help="纯背景图目录，可重复指定；缺省用 data/tt100k_2021/other")
-    ap.add_argument("--annotation", type=Path, default=DEFAULT_ANN,
-                    help="annotations_all.json，用于排除已登记的有标注图")
+    ap.add_argument(
+        "--bg-dir",
+        action="append",
+        default=[],
+        help="纯背景图目录，可重复指定；缺省用 data/tt100k_2021/other",
+    )
+    ap.add_argument(
+        "--annotation",
+        type=Path,
+        default=DEFAULT_ANN,
+        help="annotations_all.json，用于排除已登记的有标注图",
+    )
     ap.add_argument("--imgsz", type=int, default=640)
-    ap.add_argument("--conf", type=float, default=0.25,
-                    help="FPPI 所用的部署置信度阈值（Java 端默认 0.25）")
+    ap.add_argument(
+        "--conf", type=float, default=0.25, help="FPPI 所用的部署置信度阈值（Java 端默认 0.25）"
+    )
     ap.add_argument("--bg-limit", type=int, default=300)
-    ap.add_argument("--fppi-weight", type=float, default=1.0,
-                    help="score = mAP50 - fppi_weight * FPPI；越大越看重抑制误检")
-    ap.add_argument("--all-checkpoints", action="store_true",
-                    help="把 save_period 生成的 epoch*.pt 也纳入择优（默认只比 best/last）")
-    ap.add_argument("--out", type=Path, default=None,
-                    help="输出 JSON，默认 <run-dir>/deploy_candidate.json")
+    ap.add_argument(
+        "--fppi-weight",
+        type=float,
+        default=1.0,
+        help="score = mAP50 - fppi_weight * FPPI；越大越看重抑制误检",
+    )
+    ap.add_argument(
+        "--all-checkpoints",
+        action="store_true",
+        help="把 save_period 生成的 epoch*.pt 也纳入择优（默认只比 best/last）",
+    )
+    ap.add_argument(
+        "--out", type=Path, default=None, help="输出 JSON，默认 <run-dir>/deploy_candidate.json"
+    )
     return ap.parse_args()
 
 
@@ -75,9 +101,11 @@ def collect_candidates(args: argparse.Namespace) -> list[Path]:
         weights = args.run_dir / "weights"
         paths = [weights / "best.pt", weights / "last.pt"]
         if args.all_checkpoints:
+
             def epoch_num(p: Path) -> int:
                 digits = "".join(c for c in p.stem if c.isdigit())
                 return int(digits) if digits else -1
+
             paths.extend(sorted(weights.glob("epoch*.pt"), key=epoch_num))
     # 去重且保持顺序（显式 --candidates 也可能重复）
     seen: set[str] = set()
@@ -115,8 +143,12 @@ def evaluate(weights: Path, args: argparse.Namespace, bg_dirs: list[Path]) -> di
     map5095 = round(float(metrics.box.map), 5)
 
     bg = eval_background(
-        model, bg_dirs, args.annotation if args.annotation.is_file() else None,
-        args.imgsz, args.conf, args.bg_limit,
+        model,
+        bg_dirs,
+        args.annotation if args.annotation.is_file() else None,
+        args.imgsz,
+        args.conf,
+        args.bg_limit,
     )
     fppi = bg.get("fppi")
     if fppi is None:
@@ -150,8 +182,10 @@ def main() -> None:
     if not bg_dirs:
         print("[WARN] 背景图目录不可用，FPPI 将按 0 计（退化为纯 mAP50 择优）")
 
-    print(f"[INFO] 候选 {len(candidates)} 个  imgsz={args.imgsz}  "
-          f"conf(FPPI)={args.conf}  fppi_weight={args.fppi_weight}")
+    print(
+        f"[INFO] 候选 {len(candidates)} 个  imgsz={args.imgsz}  "
+        f"conf(FPPI)={args.conf}  fppi_weight={args.fppi_weight}"
+    )
     rows = []
     for w in candidates:
         print(f"\n[EVAL] {w}")
@@ -178,8 +212,10 @@ def main() -> None:
     print(" 候选权重对比 (score 越高越优)")
     print("=" * 72)
     for r in rows:
-        print(f"  mAP50={r['map50']:.5f}  FPPI={r['fppi']:.4f}  "
-              f"score={r['score']:.5f}  {r['weights']}")
+        print(
+            f"  mAP50={r['map50']:.5f}  FPPI={r['fppi']:.4f}  "
+            f"score={r['score']:.5f}  {r['weights']}"
+        )
     print(f"\n 推荐部署权重: {rows[0]['weights']}")
     print(f" 报告: {out}")
 

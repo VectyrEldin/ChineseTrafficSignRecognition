@@ -18,16 +18,10 @@ import numpy as np
 # ==================== 默认路径 ====================
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DEFAULT_WEIGHTS = str(
-    SCRIPT_DIR / "runs" / "detect" / "tt100k48_yolo26s" / "weights" / "best.pt"
-)
+DEFAULT_WEIGHTS = str(SCRIPT_DIR / "runs" / "detect" / "tt100k48_yolo26s" / "weights" / "best.pt")
 DEFAULT_NAMES = str(PROJECT_ROOT / "data" / "tt100k48_yolo" / "tt100k48.names")
-JAVA_MODEL_DST = (
-    PROJECT_ROOT / "app" / "src" / "main" / "resources" / "models" / "best.onnx"
-)
-JAVA_NAMES_DST = (
-    PROJECT_ROOT / "app" / "src" / "main" / "resources" / "config" / "tt100k48.names"
-)
+JAVA_MODEL_DST = PROJECT_ROOT / "app" / "src" / "main" / "resources" / "models" / "best.onnx"
+JAVA_NAMES_DST = PROJECT_ROOT / "app" / "src" / "main" / "resources" / "config" / "tt100k48.names"
 # 覆盖部署前的旧文件备份放 resources 之外，避免 .bak 被打进 jar / 安装包
 DEPLOY_BACKUP_DIR = PROJECT_ROOT / "backup" / "deployed"
 IMGSZ = 640  # 与 train.py 默认 imgsz 一致；Java 端由 manifest 自动适配
@@ -37,7 +31,7 @@ IMGSZ = 640  # 与 train.py 默认 imgsz 一致；Java 端由 manifest 自动适
 # predict(LetterBox) 默认均为 cv2.INTER_LINEAR；Java 侧曾误用 INTER_AREA。
 PREPROCESS_CONTRACT = {
     "resize_interpolation": "INTER_LINEAR",
-    "round_mode": "rint",          # Python round() / Java Math.rint()（同为 round-to-even）
+    "round_mode": "rint",  # Python round() / Java Math.rint()（同为 round-to-even）
     "pad_value": 114,
     "color_order": "RGB",
     "normalization": "div255",
@@ -59,9 +53,7 @@ def load_names(path: Path) -> list[str]:
     if order_file.is_file():
         expected = json.loads(order_file.read_text(encoding="utf-8")).get("num_classes")
         if expected is not None and len(names) != expected:
-            raise ValueError(
-                f"类别数应为 {expected}（来自 {order_file.name}），实际 {len(names)}"
-            )
+            raise ValueError(f"类别数应为 {expected}（来自 {order_file.name}），实际 {len(names)}")
     if len(set(names)) != len(names):
         raise ValueError("类别文件存在重复项")
     return names
@@ -116,9 +108,7 @@ def detect_layout(shape: tuple, nc: int) -> dict:
                 ),
             )
         else:
-            info["note"] = (
-                "⚠️ 未知布局，请人工阅读 shape 含义后手工修改 Java 端 PostProcessor。"
-            )
+            info["note"] = "⚠️ 未知布局，请人工阅读 shape 含义后手工修改 Java 端 PostProcessor。"
     elif len(shape) == 2:
         info["note"] = "二维输出，请人工确认布局。"
     return info
@@ -151,15 +141,23 @@ def export_model(args: argparse.Namespace, weights: Path) -> tuple[Path, int]:
     used_opset = args.opset
     try:
         exported = model.export(
-            format="onnx", imgsz=args.imgsz, opset=used_opset,
-            simplify=not args.skip_simplify, dynamic=False, nms=False,
+            format="onnx",
+            imgsz=args.imgsz,
+            opset=used_opset,
+            simplify=not args.skip_simplify,
+            dynamic=False,
+            nms=False,
         )
     except (ValueError, RuntimeError) as e:
         print(f"[WARN] opset={used_opset} 导出失败: {e}，回退 opset=17")
         used_opset = 17
         exported = model.export(
-            format="onnx", imgsz=args.imgsz, opset=used_opset,
-            simplify=not args.skip_simplify, dynamic=False, nms=False,
+            format="onnx",
+            imgsz=args.imgsz,
+            opset=used_opset,
+            simplify=not args.skip_simplify,
+            dynamic=False,
+            nms=False,
         )
     onnx_path = Path(str(exported))
     print(f"      已导出: {onnx_path} (实际 opset={used_opset})")
@@ -207,12 +205,9 @@ def run_dummy_inference(onnx_path: Path, args: argparse.Namespace, nc: int):
     print("\n[4/6] onnxruntime dummy 推理 ...")
     session = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
 
-    rt_inputs = [
-        {"name": i.name, "shape": i.shape, "type": i.type} for i in session.get_inputs()
-    ]
+    rt_inputs = [{"name": i.name, "shape": i.shape, "type": i.type} for i in session.get_inputs()]
     rt_outputs_meta = [
-        {"name": o.name, "shape": o.shape, "type": o.type}
-        for o in session.get_outputs()
+        {"name": o.name, "shape": o.shape, "type": o.type} for o in session.get_outputs()
     ]
 
     input_name = session.get_inputs()[0].name
@@ -236,9 +231,7 @@ def run_dummy_inference(onnx_path: Path, args: argparse.Namespace, nc: int):
         finite = arr[np.isfinite(arr)]
         rec = {
             "index": i,
-            "name": rt_outputs_meta[i]["name"]
-            if i < len(rt_outputs_meta)
-            else f"output{i}",
+            "name": rt_outputs_meta[i]["name"] if i < len(rt_outputs_meta) else f"output{i}",
             "shape": list(arr.shape),
             "dtype": str(arr.dtype),
             "min": float(finite.min()) if finite.size else None,
@@ -250,9 +243,7 @@ def run_dummy_inference(onnx_path: Path, args: argparse.Namespace, nc: int):
             "layout_note": meta["note"],
         }
         runtime_outputs.append(rec)
-        print(
-            f"      输出[{i}]: name={rec['name']}  shape={rec['shape']}  dtype={rec['dtype']}"
-        )
+        print(f"      输出[{i}]: name={rec['name']}  shape={rec['shape']}  dtype={rec['dtype']}")
         print(
             f"                 min={rec['min']:.4f}  max={rec['max']:.4f}  mean={rec['mean']:.4f}"
         )
@@ -264,17 +255,20 @@ def run_dummy_inference(onnx_path: Path, args: argparse.Namespace, nc: int):
     return session, rt_inputs, runtime_outputs
 
 
-def run_real_image_validation(
-    session, input_name: str, args: argparse.Namespace, nc: int
-) -> dict:
+def run_real_image_validation(session, input_name: str, args: argparse.Namespace, nc: int) -> dict:
     """步骤 5: 真实图片推理验证。
 
     与步骤 4 的 dummy 不同，这里走的是完整真实预处理，因此输出的
     坐标尺度 / 布局推断才是 manifest 契约与 Java 端的权威依据。
     """
     print("\n[5/6] 真实图片推理验证 ...")
-    real_check: dict = {"done": False, "note": "", "coord_scale": None,
-                        "layout": None, "shape": None}
+    real_check: dict = {
+        "done": False,
+        "note": "",
+        "coord_scale": None,
+        "layout": None,
+        "shape": None,
+    }
     try:
         import cv2
 
@@ -294,27 +288,28 @@ def run_real_image_validation(
 
         # scaleup=False / INTER_LINEAR 与 Ultralytics val、predict 的 LetterBox 一致
         lb = LetterBox(
-            new_shape=(args.imgsz, args.imgsz), auto=False, stride=32,
-            scaleup=False, interpolation=cv2.INTER_LINEAR,
+            new_shape=(args.imgsz, args.imgsz),
+            auto=False,
+            stride=32,
+            scaleup=False,
+            interpolation=cv2.INTER_LINEAR,
         )
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         padded = lb(image=rgb)
         # LetterBox.__call__ 的返回标注为 dict[str, Any] | np.ndarray；
         # 此处按实际返回 ndarray 的分支收窄，避免类型检查器误判为 dict。
         if not isinstance(padded, np.ndarray):
-            raise TypeError(
-                f"LetterBox 返回 {type(padded).__name__}，预期 np.ndarray"
-            )
-        x = np.ascontiguousarray(
-            padded.transpose(2, 0, 1)[None], dtype=np.float32
-        ) / 255.0
+            raise TypeError(f"LetterBox 返回 {type(padded).__name__}，预期 np.ndarray")
+        x = np.ascontiguousarray(padded.transpose(2, 0, 1)[None], dtype=np.float32) / 255.0
         out = session.run(None, {input_name: x})[0]
         arr = np.asarray(out)
         layout = detect_layout(tuple(arr.shape), nc)
         coord_scale = probe_coord_scale(arr, args.imgsz)
         real_check.update(
-            shape=list(arr.shape), layout=layout["layout"],
-            need_nms=layout["need_nms"], coord_scale=coord_scale,
+            shape=list(arr.shape),
+            layout=layout["layout"],
+            need_nms=layout["need_nms"],
+            coord_scale=coord_scale,
         )
         print(f"      测试图: {imgs[0].name}")
         print(f"      输出 shape: {arr.shape}")
@@ -372,7 +367,8 @@ def build_output_contract(
         "contract_source": "real_image" if real_check.get("done") else "dummy_fallback",
         "contract_note": (
             "输出已端到端去重, Java 端禁止再做 NMS; 仅跨切片合并时允许去重。"
-            if layout == "end2end_nms_free" else "按 onnx_output_format.txt 手工核对解析分支。"
+            if layout == "end2end_nms_free"
+            else "按 onnx_output_format.txt 手工核对解析分支。"
         ),
     }
 
@@ -381,9 +377,7 @@ def generate_reports(report: dict, args: argparse.Namespace):
     """步骤 6: 写出报告"""
     print("\n[6/6] 写出 onnx_output_format.txt / .json ...")
     json_path = SCRIPT_DIR / "onnx_output_format.json"
-    json_path.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     L = []
     A = L.append
@@ -512,12 +506,20 @@ def main() -> None:
     session, rt_inputs, runtime_outputs = run_dummy_inference(onnx_path, args, nc)
     real_check = run_real_image_validation(session, rt_inputs[0]["name"], args, nc)
     contract = build_output_contract(runtime_outputs, real_check, args, nc)
-    print(f"      输出契约: {contract['output_layout']} / {contract['coordinate_space']}"
-          f" ({contract['contract_source']})")
+    print(
+        f"      输出契约: {contract['output_layout']} / {contract['coordinate_space']}"
+        f" ({contract['contract_source']})"
+    )
 
     # 组装报告数据
     report = {
-        "source_weights": str(weights),
+        # manifest 会随仓库分发：记录项目根相对路径，避免泄漏本机绝对路径；
+        # 项目外的权重退回绝对路径
+        "source_weights": (
+            weights.relative_to(PROJECT_ROOT).as_posix()
+            if weights.is_relative_to(PROJECT_ROOT)
+            else str(weights)
+        ),
         "onnx_path": str(onnx_path),
         "opset": used_opset,
         "imgsz": args.imgsz,

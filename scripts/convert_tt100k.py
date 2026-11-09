@@ -76,7 +76,7 @@ def bbox_to_coordinate(bbox: Any) -> tuple[float, float, float, float] | None:
             ymax = float(bbox["ymax"])
         else:
             xmin, ymin, xmax, ymax = (float(v) for v in bbox[:4])
-    except (KeyError, TypeError, ValueError, IndexError):
+    except KeyError, TypeError, ValueError, IndexError:
         return None
     if xmax <= xmin or ymax <= ymin:
         return None
@@ -96,7 +96,7 @@ def _get_image_wh(img_data: dict, img_path: Path | None) -> tuple[float, float]:
     try:
         with Image.open(img_path) as im:
             return float(im.width), float(im.height)
-    except (OSError, Image.UnidentifiedImageError):
+    except OSError, Image.UnidentifiedImageError:
         print(f"  [WARN] 无法读取图片尺寸: {img_path}")
         return 0.0, 0.0  # ← 关键：except 里也要 return
 
@@ -111,9 +111,7 @@ def load_annotation(path: Path) -> dict:
     return data
 
 
-def deterministic_is_train(
-    img_id: str, split_mode: str = "hash", group_size: int = 16
-) -> bool:
+def deterministic_is_train(img_id: str, split_mode: str = "hash", group_size: int = 16) -> bool:
     """决定图片进入 train 还是 val。
     group : 把相邻 group_size 个连续 id 视为同一拍摄序列，对组号求哈希。
     """
@@ -159,8 +157,7 @@ def _get_bucket(
     使 val/test 组成保持不变, mAP 与既有结果仍可比。
     """
     if _is_train_path(img_data.get("path", "")):
-        return ("train" if deterministic_is_train(img_id, split_mode, group_size)
-                else "val")
+        return "train" if deterministic_is_train(img_id, split_mode, group_size) else "val"
     if other_to_train and _path_segment(img_data) == "other":
         return "train"
     return "test"
@@ -236,9 +233,7 @@ def write_names_file(path: Path, selected: list[tuple[str, int]]) -> list[str]:
     return names
 
 
-def write_yaml(
-        path: Path, names: list[str], train_entry: str = "images/train"
-) -> None:
+def write_yaml(path: Path, names: list[str], train_entry: str = "images/train") -> None:
     """写数据集 yaml。
 
     刻意不写 `path:` : Ultralytics check_det_dataset 在 path 缺省时会用
@@ -285,9 +280,7 @@ def _collect_label_stats(
     return counts, per_image
 
 
-def write_balanced_train_list(
-    output_dir: Path, max_repeat: int
-) -> tuple[Path, dict]:
+def write_balanced_train_list(output_dir: Path, max_repeat: int) -> tuple[Path, dict]:
     """类感知重采样：把含稀有类的训练图重复列入 train_balanced.txt。
 
     论文 §4.2 把 100-1000 实例的类补到 1000; 本项目无法用 marks 模板做
@@ -338,9 +331,7 @@ def sha256_of_names(names: list[str]) -> str:
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
-def write_class_order_json(
-    path: Path, names: list[str], selected: list[tuple[str, int]]
-) -> str:
+def write_class_order_json(path: Path, names: list[str], selected: list[tuple[str, int]]) -> str:
     """
     落一份机器可读的类别顺序清单（含 sha256 指纹）。
     """
@@ -365,8 +356,7 @@ class _SkipReason:
     MISSING_IMG = "missing_img"  # label 已写但图片没找到
 
 
-def _convert_single_object(obj, img_w, img_h, old_to_new, num_classes,
-                           emit_segments=False):
+def _convert_single_object(obj, img_w, img_h, old_to_new, num_classes, emit_segments=False):
     old_cat = str(obj.get("category", ""))
     new_cat = old_to_new.get(old_cat)
     if new_cat is None:
@@ -399,14 +389,13 @@ def _convert_single_object(obj, img_w, img_h, old_to_new, num_classes,
     return f"{new_cat} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}"
 
 
-def _convert_objects_to_yolo_lines(img_data, img_w, img_h, old_to_new,
-                                   num_classes, emit_segments=False):
+def _convert_objects_to_yolo_lines(
+    img_data, img_w, img_h, old_to_new, num_classes, emit_segments=False
+):
     """只返回「保留类别且几何合法」的 YOLO 行；空列表 = 这张图不该有 label"""
     lines = []
     for obj in img_data.get("objects", []) or []:
-        line = _convert_single_object(
-            obj, img_w, img_h, old_to_new, num_classes, emit_segments
-        )
+        line = _convert_single_object(obj, img_w, img_h, old_to_new, num_classes, emit_segments)
         if line:
             lines.append(line)
     return lines
@@ -475,8 +464,11 @@ def _process_single_image(
         return _SkipReason.NO_RETENTION, False
 
     bucket = _get_bucket(
-        img_id, img_data, other_to_train=other_to_train,
-        split_mode=split_mode, group_size=group_size,
+        img_id,
+        img_data,
+        other_to_train=other_to_train,
+        split_mode=split_mode,
+        group_size=group_size,
     )
     label_dir = output_dir / "labels" / bucket
     image_out_dir = output_dir / "images" / bucket
@@ -540,9 +532,7 @@ def convert_all(
             bad_geom += 1
 
     if no_retention:
-        print(
-            f"  [INFO] {no_retention} 张图片无保留类别的有效标注，已明确跳过 (未生成空 label)"
-        )
+        print(f"  [INFO] {no_retention} 张图片无保留类别的有效标注，已明确跳过 (未生成空 label)")
     if bad_geom:
         print(f"  [WARN] {bad_geom} 张图片尺寸非法或框全部无效，已跳过")
     if missing:
@@ -611,11 +601,7 @@ def verify(output_dir: Path, names: list[str], num_classes: int) -> None:
 
     # ① names 文件自身
     names_file = output_dir / NAMES_FILE
-    lines = [
-        l.strip()
-        for l in names_file.read_text(encoding="utf-8").splitlines()
-        if l.strip()
-    ]
+    lines = [l.strip() for l in names_file.read_text(encoding="utf-8").splitlines() if l.strip()]
     require(len(lines) == num_classes, f"names 文件 {len(lines)} 行，期望 {num_classes}")
     require(len(set(lines)) == num_classes, "names 文件存在重复类别名")
     require(lines == names, "names 文件与内存中的 selected 顺序不一致（写入异常）")
@@ -624,8 +610,7 @@ def verify(output_dir: Path, names: list[str], num_classes: int) -> None:
     # ② yaml 的 names 列表
     yaml_path = output_dir / YAML_FILE
     y = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-    assert isinstance(y, dict) and y is not None, \
-        f"yaml 文件为空或格式错误: {yaml_path}"
+    assert isinstance(y, dict) and y is not None, f"yaml 文件为空或格式错误: {yaml_path}"
 
     require(y["nc"] == num_classes, f"yaml nc={y['nc']}，期望 {num_classes}")
     require(y["names"] == lines, "yaml names 与 .names 文件顺序不一致！")
@@ -684,24 +669,38 @@ def _parse_args() -> argparse.Namespace:
     ap.add_argument("--max-classes", type=int, default=DEFAULT_MAX_CLASSES)
     ap.add_argument("--link", action="store_true")
     ap.add_argument("--emit-names-to", type=Path, default=None)
-    ap.add_argument("--other-image-dir", type=Path, default=None,
-                    help="other 目录；默认自动从标注文件同级推断")
-    ap.add_argument("--superclass", action="store_true",
-                    help="兼容保留: 48 类方案已默认启用，无需显式传入")
-    ap.add_argument("--background-ratio", type=float,
-                    default=DEFAULT_BACKGROUND_RATIO,
-                    help="无标注背景图纳入 train 的比例（默认 0.10），0 表示关闭")
-    ap.add_argument("--split-mode", choices=("hash", "group"), default="group",
-                    help="group=按相邻 id 分组划分(默认，消除近重复帧泄漏)；"
-                         "hash=逐图哈希(旧行为，逐字节复现)")
-    ap.add_argument("--emit-segments", action="store_true",
-                    help="在 bbox 后追加四角多边形，使 Ultralytics copy_paste 真正生效")
-    ap.add_argument("--group-size", type=int, default=16,
-                    help="group 模式下每组连续的 id 数量（默认 16）")
-    ap.add_argument("--class-balanced", action="store_true",
-                    help="生成 train_balanced.txt 做逆频率类感知重采样")
-    ap.add_argument("--max-repeat", type=int, default=3,
-                    help="--class-balanced 时单张图片最多重复次数")
+    ap.add_argument(
+        "--other-image-dir", type=Path, default=None, help="other 目录；默认自动从标注文件同级推断"
+    )
+    ap.add_argument(
+        "--superclass", action="store_true", help="兼容保留: 48 类方案已默认启用，无需显式传入"
+    )
+    ap.add_argument(
+        "--background-ratio",
+        type=float,
+        default=DEFAULT_BACKGROUND_RATIO,
+        help="无标注背景图纳入 train 的比例（默认 0.10），0 表示关闭",
+    )
+    ap.add_argument(
+        "--split-mode",
+        choices=("hash", "group"),
+        default="group",
+        help="group=按相邻 id 分组划分(默认，消除近重复帧泄漏)；hash=逐图哈希(旧行为，逐字节复现)",
+    )
+    ap.add_argument(
+        "--emit-segments",
+        action="store_true",
+        help="在 bbox 后追加四角多边形，使 Ultralytics copy_paste 真正生效",
+    )
+    ap.add_argument(
+        "--group-size", type=int, default=16, help="group 模式下每组连续的 id 数量（默认 16）"
+    )
+    ap.add_argument(
+        "--class-balanced", action="store_true", help="生成 train_balanced.txt 做逆频率类感知重采样"
+    )
+    ap.add_argument(
+        "--max-repeat", type=int, default=3, help="--class-balanced 时单张图片最多重复次数"
+    )
     ap.add_argument(
         "--overwrite",
         action="store_true",
@@ -728,9 +727,7 @@ def _select_and_print_classes(
     args: argparse.Namespace, ann: dict
 ) -> tuple[list[str], dict[str, int], list[tuple[str, int]]]:
     """筛选类别、打印映射表、写出 names/yaml/class_order.json。"""
-    names, raw_to_new, counts = select_classes_extended(
-        ann, args.min_samples, args.max_classes
-    )
+    names, raw_to_new, counts = select_classes_extended(ann, args.min_samples, args.max_classes)
     selected = [(name, counts[name]) for name in names]
     print(f"[1/6] 类别筛选完成: 保留 {len(names)} 类（含 3 个大类）")
 
@@ -751,9 +748,7 @@ def _select_and_print_classes(
     # 写元数据文件
     write_names_file(args.output / NAMES_FILE, selected)
     write_yaml(args.output / YAML_FILE, names)
-    digest = write_class_order_json(
-        args.output / CLASS_ORDER_FILE, names, selected
-    )
+    digest = write_class_order_json(args.output / CLASS_ORDER_FILE, names, selected)
     print("[2/6] 写出 names / yaml / class_order.json")
     print(f"      类别顺序指纹 sha256[:16] = {digest}")
 
@@ -787,13 +782,13 @@ def _run_conversion(
         args.group_size,
         args.emit_segments,
     )
-    print(f"      图片 {n_img} 张 / 标签 {n_lbl} 个  "
-          f"(划分模式={args.split_mode}, 多边形标签={args.emit_segments})")
+    print(
+        f"      图片 {n_img} 张 / 标签 {n_lbl} 个  "
+        f"(划分模式={args.split_mode}, 多边形标签={args.emit_segments})"
+    )
 
 
-def _write_background_if_needed(
-    args: argparse.Namespace, ann: dict
-) -> None:
+def _write_background_if_needed(args: argparse.Namespace, ann: dict) -> None:
     """按需写入背景图。"""
     if args.background_ratio <= 0:
         return
@@ -809,10 +804,9 @@ def _write_background_if_needed(
     if other_dir is not None:
         image_dirs["other"] = other_dir
 
-    n_bg = write_background(
-        ann, image_dirs, args.output, args.background_ratio, args.link
-    )
+    n_bg = write_background(ann, image_dirs, args.output, args.background_ratio, args.link)
     print(f"      背景图 {n_bg} 张（空 label，仅 train）")
+
 
 def _write_balanced_list_if_needed(
     args: argparse.Namespace, output_dir: Path, names: list[str]
@@ -822,9 +816,11 @@ def _write_balanced_list_if_needed(
         return
     list_path, stats = write_balanced_train_list(output_dir, args.max_repeat)
     write_yaml(output_dir / YAML_FILE, names, train_entry=list_path.name)
-    print(f"[4/6] 类感知重采样: {list_path.name} "
-          f"{stats['images']} 张 → {stats['list_entries']} 条 "
-          f"(重复分布 {stats['repeat_histogram']})")
+    print(
+        f"[4/6] 类感知重采样: {list_path.name} "
+        f"{stats['images']} 张 → {stats['list_entries']} 条 "
+        f"(重复分布 {stats['repeat_histogram']})"
+    )
     print(f"      yaml train 已指向 {list_path.name}")
 
 

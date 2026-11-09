@@ -20,6 +20,7 @@ verify_parity.py —— 生成 Python 端与 ONNX 端的检测基准，
       --onnx runs/detect/tt100k45_yolo26s/weights/best.onnx \
       --names ../data/tt100k45_yolo/tt100k45.names
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,10 +42,8 @@ def default_weights() -> str:
     candidate = RUN_DIR / "deploy_candidate.json"
     if candidate.is_file():
         try:
-            rec = json.loads(candidate.read_text(encoding="utf-8")).get(
-                "recommended_weights"
-            )
-        except (json.JSONDecodeError, OSError):
+            rec = json.loads(candidate.read_text(encoding="utf-8")).get("recommended_weights")
+        except json.JSONDecodeError, OSError:
             rec = None
         if rec:
             p = Path(rec)
@@ -106,9 +105,7 @@ def restore_box(
     return [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)]
 
 
-def make_detection(
-    class_id: int, names: list[str], score: float, box: list[float]
-) -> dict:
+def make_detection(class_id: int, names: list[str], score: float, box: list[float]) -> dict:
     """构造一条标准检测结果。"""
     name = names[class_id] if 0 <= class_id < len(names) else "?"
     return {
@@ -185,12 +182,8 @@ def parse_head_output(
     detections = []
     for index in np.array(keep).flatten():
         position = int(index)
-        box = restore_box(
-            boxes[position], scale, pad_x, pad_y, original_w, original_h
-        )
-        detections.append(
-            make_detection(int(class_ids[position]), names, scores[position], box)
-        )
+        box = restore_box(boxes[position], scale, pad_x, pad_y, original_w, original_h)
+        detections.append(make_detection(int(class_ids[position]), names, scores[position], box))
     return detections
 
 
@@ -203,22 +196,31 @@ def run_input_parity(image: np.ndarray, size: int) -> dict:
     from ultralytics.data.augment import LetterBox
 
     canvas, scale, pad_x, pad_y = letterbox(image, size)
-    java_tensor = np.ascontiguousarray(
-        cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)[None],
-        dtype=np.float32,
-    ) / 255.0
+    java_tensor = (
+        np.ascontiguousarray(
+            cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)[None],
+            dtype=np.float32,
+        )
+        / 255.0
+    )
 
     lb = LetterBox(
-        new_shape=(size, size), auto=False, stride=32,
-        scaleup=False, interpolation=cv2.INTER_LINEAR,
+        new_shape=(size, size),
+        auto=False,
+        stride=32,
+        scaleup=False,
+        interpolation=cv2.INTER_LINEAR,
     )
     padded = lb(image=image)
     if not isinstance(padded, np.ndarray):
         raise TypeError(f"LetterBox 返回 {type(padded).__name__}，预期 np.ndarray")
-    ref_tensor = np.ascontiguousarray(
-        cv2.cvtColor(padded, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)[None],
-        dtype=np.float32,
-    ) / 255.0
+    ref_tensor = (
+        np.ascontiguousarray(
+            cv2.cvtColor(padded, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)[None],
+            dtype=np.float32,
+        )
+        / 255.0
+    )
 
     result = {
         "imgsz": size,
@@ -229,8 +231,9 @@ def run_input_parity(image: np.ndarray, size: int) -> dict:
         "shape_ultralytics": list(ref_tensor.shape),
     }
     if java_tensor.shape != ref_tensor.shape:
-        result.update(ok=False, max_abs_diff=None,
-                      note="shape 不一致：请核对 letterbox 的 round / pad 计算")
+        result.update(
+            ok=False, max_abs_diff=None, note="shape 不一致：请核对 letterbox 的 round / pad 计算"
+        )
         return result
 
     diff = np.abs(java_tensor - ref_tensor)
@@ -266,9 +269,7 @@ def run_onnx(
     rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
     tensor = np.ascontiguousarray(rgb.transpose(2, 0, 1)[None], dtype=np.float32) / 255.0
 
-    session = onnxruntime.InferenceSession(
-        str(onnx_path), providers=["CPUExecutionProvider"]
-    )
+    session = onnxruntime.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
     raw = session.run(None, {session.get_inputs()[0].name: tensor})[0]
     values = np.asarray(raw)
     print(f"[ONNX] 输出 shape = {values.shape}")
@@ -314,9 +315,12 @@ def run_pt_baseline(
 
         model = YOLO(weights)
         predictions = model.predict(
-            source=str(image_path), conf=conf, imgsz=size,
+            source=str(image_path),
+            conf=conf,
+            imgsz=size,
             nms=False,  # ONNX 以 nms=False 导出，PyTorch 基准必须用同一 e2e 头
-            verbose=False, stream=False,
+            verbose=False,
+            stream=False,
         )
         first = next(iter(predictions), None)
         if not isinstance(first, Results):
@@ -333,14 +337,12 @@ def print_report(pytorch_detections: list[dict], onnx_detections: list[dict]) ->
     print(f"PyTorch(.pt) 结果 — {len(pytorch_detections)} 个框")
     for item in pytorch_detections:
         print(
-            f"  cls={item['cls']:>2} {item['name']:<8} "
-            f"conf={item['conf']:.4f}  box={item['box']}"
+            f"  cls={item['cls']:>2} {item['name']:<8} conf={item['conf']:.4f}  box={item['box']}"
         )
     print(f"\nONNX 结果 — {len(onnx_detections)} 个框")
     for item in onnx_detections:
         print(
-            f"  cls={item['cls']:>2} {item['name']:<8} "
-            f"conf={item['conf']:.4f}  box={item['box']}"
+            f"  cls={item['cls']:>2} {item['name']:<8} conf={item['conf']:.4f}  box={item['box']}"
         )
     print("=" * 64)
 
@@ -352,8 +354,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--onnx", default=DEFAULT_ONNX)
     ap.add_argument("--names", default=DEFAULT_NAMES)
     ap.add_argument("--conf", type=float, default=0.25)
-    ap.add_argument("--size", type=int, default=640,
-                    help="网络输入边长，必须与导出 imgsz / AppConfig.INPUT_SIZE 一致")
+    ap.add_argument(
+        "--size",
+        type=int,
+        default=640,
+        help="网络输入边长，必须与导出 imgsz / AppConfig.INPUT_SIZE 一致",
+    )
     return ap.parse_args()
 
 
@@ -378,14 +384,14 @@ def main() -> None:
 
     input_parity = run_input_parity(image, args.size)
     print("\n[INPUT-PARITY] Java/ONNX letterbox vs Ultralytics LetterBox")
-    print(f"  ok={input_parity['ok']}  max_abs_diff={input_parity['max_abs_diff']}"
-          f"  {input_parity['note']}")
+    print(
+        f"  ok={input_parity['ok']}  max_abs_diff={input_parity['max_abs_diff']}"
+        f"  {input_parity['note']}"
+    )
     if not input_parity["ok"]:
         print("  [WARN] 输入张量不一致，下方 pt/onnx 框对比不能作为端到端对齐证据")
 
-    pytorch_detections = run_pt_baseline(
-        args.weights, image_path, names, args.conf, args.size
-    )
+    pytorch_detections = run_pt_baseline(args.weights, image_path, names, args.conf, args.size)
     onnx_detections = run_onnx(Path(args.onnx), image, names, args.conf, args.size)
     print_report(pytorch_detections, onnx_detections)
 
@@ -397,9 +403,7 @@ def main() -> None:
         "pt": pytorch_detections,
         "onnx": onnx_detections,
     }
-    BASELINE_PATH.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    BASELINE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n✅ 基准已保存: {BASELINE_PATH}")
     print("   用它和 Java 端结果表格逐条比对")
 

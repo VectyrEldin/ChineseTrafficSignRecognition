@@ -64,9 +64,7 @@ def is_resampled(data_yaml: Path) -> bool:
 def check_class_order(data_yaml: Path) -> list[str]:
     """确认 yaml 的 names 顺序与 .names 文件逐行一致（类别顺序三处一致的最后一道岗）。"""
     if not data_yaml.is_file():
-        sys.exit(
-            f"[FAIL] 数据集配置不存在: {data_yaml}\n       请先执行 convert_tt100k.py"
-        )
+        sys.exit(f"[FAIL] 数据集配置不存在: {data_yaml}\n       请先执行 convert_tt100k.py")
 
     raw = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
     # 显式确保加载结果是字典，消除类型检查器对 .get() 的警告
@@ -82,11 +80,7 @@ def check_class_order(data_yaml: Path) -> list[str]:
     names_file = data_yaml.with_suffix(".names")
     if not names_file.is_file():
         raise FileNotFoundError(f"缺少类别文件: {names_file}")
-    lines = [
-        l.strip()
-        for l in names_file.read_text(encoding="utf-8").splitlines()
-        if l.strip()
-    ]
+    lines = [l.strip() for l in names_file.read_text(encoding="utf-8").splitlines() if l.strip()]
     expected = len(lines)
 
     if len(names) != expected:
@@ -153,7 +147,7 @@ def build_train_kwargs(args, resampled: bool) -> dict:
         "mosaic": 0.99182,  # 官方原值
         # Ultralytics 框架默认值；最后 10 轮关 mosaic 做收尾微调
         "close_mosaic": 10,
-        "mixup": 0.0,      # 半透明重影干扰限速数字类
+        "mixup": 0.0,  # 半透明重影干扰限速数字类
         "copy_paste": 0.0,  # bbox-only 标签无 segments，CopyPaste 不会执行
         # 损失权重与 dfl/hsv 取官方 yolo26s.pt train_args 原值；
         # 仅 hsv_v 例外：官方 0.194，因 TT100K 光照/天气变化大取 0.3。
@@ -205,20 +199,29 @@ def main() -> None:
     ap.add_argument("--run-name", default=NAME, help="训练输出目录名")
     ap.add_argument("--epochs", type=int, default=100, help="训练轮数")
     ap.add_argument("--patience", type=int, default=20, help="早停耐心轮数")
-    ap.add_argument("--batch", type=int, default=16,
-                    help="批大小; 640+16 在 8GB 显存已验证不 OOM, "
-                         "显存被其他程序占用时退回 8")
+    ap.add_argument(
+        "--batch",
+        type=int,
+        default=16,
+        help="批大小; 640+16 在 8GB 显存已验证不 OOM, 显存被其他程序占用时退回 8",
+    )
     ap.add_argument("--imgsz", type=int, default=640, help="网络输入边长")
-    ap.add_argument("--workers", type=int, default=4,
-                    help="dataloader 进程数; Windows spawn 每进程约 0.4-0.5GB, "
-                         "8 进程曾在轮次边界内存耗尽, 4 为 45 类基线验证值")
+    ap.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="dataloader 进程数; Windows spawn 每进程约 0.4-0.5GB, "
+        "8 进程曾在轮次边界内存耗尽, 4 为 45 类基线验证值",
+    )
     ap.add_argument("--device", default="0", help="'0' / '0,1' / 'cpu'")
-    ap.add_argument("--cache", action="store_true",
-                    help="开启内存缓存 (需缓存体积×2 的空闲 RAM, 16GB 机器会被框架拒绝)")
+    ap.add_argument(
+        "--cache",
+        action="store_true",
+        help="开启内存缓存 (需缓存体积×2 的空闲 RAM, 16GB 机器会被框架拒绝)",
+    )
     ap.add_argument("--smoke", action="store_true", help="1 epoch 冒烟测试")
     ap.add_argument("--resume", action="store_true", help="从 last.pt 断点续训")
-    ap.add_argument("--time", type=float, default=0.0,
-                    help="最长训练小时数,0 表示不限时")
+    ap.add_argument("--time", type=float, default=0.0, help="最长训练小时数,0 表示不限时")
     args = ap.parse_args()
     if args.smoke and args.resume:
         ap.error("--smoke 与 --resume 不能同时使用（续训应作用于正式训练）")
@@ -273,11 +276,35 @@ def main() -> None:
     kwargs = build_train_kwargs(args, resampled)
     print("\n[CFG] 关键超参:")
     for k in (
-        "data", "epochs", "patience", "time", "batch", "imgsz", "workers",
-        "optimizer", "lr0", "lrf", "cos_lr", "momentum", "weight_decay",
-        "warmup_epochs", "box", "cls", "dfl",
-        "fliplr", "scale", "mosaic", "close_mosaic", "mixup",
-        "hsv_h", "hsv_s", "hsv_v", "cls_pw", "multi_scale", "nms", "cache",
+        "data",
+        "epochs",
+        "patience",
+        "time",
+        "batch",
+        "imgsz",
+        "workers",
+        "optimizer",
+        "lr0",
+        "lrf",
+        "cos_lr",
+        "momentum",
+        "weight_decay",
+        "warmup_epochs",
+        "box",
+        "cls",
+        "dfl",
+        "fliplr",
+        "scale",
+        "mosaic",
+        "close_mosaic",
+        "mixup",
+        "hsv_h",
+        "hsv_s",
+        "hsv_v",
+        "cls_pw",
+        "multi_scale",
+        "nms",
+        "cache",
     ):
         print(f"      {k:12s} = {kwargs.get(k)}")
 
@@ -303,7 +330,7 @@ def main() -> None:
         metrics = best_model.val(
             data=args.data,
             imgsz=kwargs["imgsz"],  # 与训练分辨率一致，否则独立 val 会退回默认 640
-            nms=False,              # 与训练内 val / ONNX 导出的 NMS-free 头同口径
+            nms=False,  # 与训练内 val / ONNX 导出的 NMS-free 头同口径
             project=str(SCRIPT_DIR / "runs" / "detect"),
             name=f"{run_name}_val",
             verbose=False,
@@ -313,9 +340,11 @@ def main() -> None:
         print(f"  Precision    : {metrics.box.mp:.4f}")
         print(f"  Recall       : {metrics.box.mr:.4f}")
 
-    print("\n[NEXT] 需要背景误检择优时手动执行: "
-          f"python select_best.py --run-dir \"{run_dir}\" --data \"{args.data}\" "
-          f"--imgsz {kwargs['imgsz']}")
+    print(
+        "\n[NEXT] 需要背景误检择优时手动执行: "
+        f'python select_best.py --run-dir "{run_dir}" --data "{args.data}" '
+        f"--imgsz {kwargs['imgsz']}"
+    )
 
 
 # Windows + workers>0 必须保留此保护：dataloader 用 spawn，
